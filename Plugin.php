@@ -10,6 +10,7 @@ use JsonRPC\Exception\AuthenticationFailureException;
 use Kanboard\Core\Filter\QueryBuilder;
 use Kanboard\Core\Controller\AccessForbiddenException;
 use Kanboard\Plugin\SensitiveItem\Model\FilteredTaskFinderModel;
+use Kanboard\Plugin\SensitiveItem\Model\FilteredTaskLinkModel;
 
 
 
@@ -56,6 +57,8 @@ class Plugin extends Base
                     $builder->withQuery($c['projectActivityModel']->getQuery());
                     $builder->getQuery()->subquery("SELECT `value` FROM `task_has_metadata` WHERE `task_id` = `project_activities`.task_id AND `name` = 'sensitive_flag'", "sensitive");
                     $builder->getQuery()->addCondition('(sensitive <> 1 OR sensitive IS NULL)');
+                    //TODO: Better filtering here than just hiding link activities
+                    $builder->getQuery()->addCondition("event_name <> 'task_internal_link.create_update'");
                     return $builder;
                 });
             }
@@ -72,6 +75,10 @@ class Plugin extends Base
                 if($value) {
                     throw AccessForbiddenException::getInstance()->withoutLayout();
                 }
+                // Stop internal links showing to sensitive tasks
+                $container['taskLinkModel'] = $container->factory(function($c) {
+                    return new FilteredTaskLinkModel($c);
+                });
             }
         });
     }
@@ -103,7 +110,7 @@ class Plugin extends Base
 
     public function getPluginHomepage()
     {
-        return 'https://github.com/kanboard/plugin-myplugin';
+        return 'https://github.com/stackrainbow/kanboard-plugin-sensitive';
     }
 }
 
